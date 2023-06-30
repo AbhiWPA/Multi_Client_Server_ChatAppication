@@ -11,7 +11,6 @@ void clientHandler(SOCKET clientSocket, std::vector<SOCKET>& clientSockets)
 {
     char buffer[4096];
     std::string clientMessage;
-    std::string serverMessage;
 
     while (true)
     {
@@ -29,11 +28,8 @@ void clientHandler(SOCKET clientSocket, std::vector<SOCKET>& clientSockets)
             break;
         }
 
-       
+        clientMessage = buffer;
         std::cout << "Client Says: " << clientMessage << std::endl;
-        std::cout<<"Enter message for client : ";
-        std::cin>>serverMessage;
-        serverMessage = buffer;
 
         // Echo the message back to the client
         if (send(clientSocket, buffer, bytesReceived, 0) == SOCKET_ERROR)
