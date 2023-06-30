@@ -58,8 +58,9 @@ int main()
             return 1;
         }
 
-        std::cerr << "server connected" << std::endl;
+        //std::cerr << "server connected" << std::endl;
         memset(buffer, 0, sizeof(buffer));
+        serverMessage = buffer;
 
         if (recv(clientSocket, buffer, sizeof(buffer), 0) == SOCKET_ERROR)
         {

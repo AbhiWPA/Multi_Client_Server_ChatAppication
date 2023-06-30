@@ -33,7 +33,6 @@ void clientHandler(SOCKET clientSocket, std::vector<SOCKET>& clientSockets)
         std::cout << "Client Says: " << clientMessage << std::endl;
         std::cout<<"Enter message for client : ";
         std::cin>>serverMessage;
-        std::cout << "" <<std::endl;
         serverMessage = buffer;
 
         // Echo the message back to the client
