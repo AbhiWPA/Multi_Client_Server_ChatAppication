@@ -47,6 +47,7 @@ int main()
 
         if (clientMessage == "exit")
         {
+            std::cout<<"Client is disconnected";
             break;
         }
 
