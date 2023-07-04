@@ -1,60 +1,129 @@
 #include <iostream>
 #include <winsock2.h>
 #include <vector>
+#include <mutex>
 #include <thread>
+#include <unistd.h>
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define PORT 5000
+constexpr int PORT = 5000;
 
-void clientHandler(SOCKET clientSocket, std::vector<SOCKET>& clientSockets)
-{
+class ClientHandler {
+    private:
+        std::vector<ClientHandler*>& clientHandlersList;
+        std::mutex& mutex;
+
+    public:
+        int clientSocket;
+        ClientHandler(int socket, std::vector<ClientHandler*>& clients, std::mutex& lock):
+         clientSocket(socket), clientHandlersList(clients), mutex(lock){
+
+         }
+
+         void operate(){
+            try{
+                int bytesRead;
+
+            char buffer[4096];
+            std::string clientMessage;
+            std::string serverMessage;
+
+            while (true){
+                bytesRead = 0;
+
+                memset(buffer, 0, sizeof(buffer));
+                clientMessage = buffer;
+                bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+
+                // cout << clientSocket << std::endl
+                //      << buffer << std::endl
+                //      << sizeof(buffer) << std::endl
+                //      << bytesRead << std::endl;
+
+                std::cout << "Client Says : " << buffer << std ::endl;
+
+                // Sending again to the Client
+                std:: cout << "Enter a message to Client : ";
+                std::getline(std::cin, serverMessage);
+
+                send(clientSocket, serverMessage.c_str(), serverMessage.length(), 0);
+                // send(clientSocket, buffer, bytesRead, 0);
+            }
+
+            if (bytesRead == 0)
+            {
+                // Client disconnected
+                std::cout << "Client disconnected." << std::endl;
+            }
+            else
+            {
+                // Error in receiving data
+                std::cerr << "Error in receiving data from client." << std::endl;
+            }
+
+            close(clientSocket);
+
+            // Remove the client from the list
+            // std::lock_guard<std::mutex> lock(mtx);
+            // clientHandlersList.erase(std::remove(clientHandlersList.begin(), clientHandlersList.end(), this),
+            // clientHandlersList.end());
+
+            }catch(const std::exception& e){
+                std:: cout << e.what() << std::endl;
+            }
+         }
+        
+
     char buffer[4096];
     std::string clientMessage;
 
-    while (true)
-    {
-        memset(buffer, 0, sizeof(buffer));
+    // while (true)
+    // {
+    //     memset(buffer, 0, sizeof(buffer));
 
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived == SOCKET_ERROR)
-        {
-            std::cerr << "Failed to receive data from the client" << std::endl;
-            break;
-        }
-        else if (bytesReceived == 0)
-        {
-            std::cout << "Client disconnected" << std::endl;
-            break;
-        }
+    //     int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+    //     if (bytesReceived == SOCKET_ERROR)
+    //     {
+    //         std::cerr << "Failed to receive data from the client" << std::endl;
+    //         break;
+    //     }
+    //     else if (bytesReceived == 0)
+    //     {
+    //         std::cout << "Client disconnected" << std::endl;
+    //         break;
+    //     }
 
-        clientMessage = buffer;
-        std::cout << "Client Says: " << clientMessage << std::endl;
+    //     clientMessage = buffer;
+    //     std::cout << "Client Says: " << clientMessage << std::endl;
 
-        // Echo the message back to the client
-        if (send(clientSocket, buffer, bytesReceived, 0) == SOCKET_ERROR)
-        {
-            std::cerr << "Failed to send data to the client" << std::endl;
-            break;
-        }
-    }
+    //     // Echo the message back to the client
+    //     if (send(clientSocket, buffer, bytesReceived, 0) == SOCKET_ERROR)
+    //     {
+    //         std::cerr << "Failed to send data to the client" << std::endl;
+    //         break;
+    //     }
+    // }
 
-    // Remove the client socket from the vector
-    for (size_t i = 0; i < clientSockets.size(); ++i)
-    {
-        if (clientSockets[i] == clientSocket)
-        {
-            clientSockets.erase(clientSockets.begin() + i);
-            break;
-        }
-    }
+    // // Remove the client socket from the vector
+    // for (size_t i = 0; i < clientSockets.size(); ++i)
+    // {
+    //     if (clientSockets[i] == clientSocket)
+    //     {
+    //         clientSockets.erase(clientSockets.begin() + i);
+    //         break;
+    //     }
+    // }
 
-    closesocket(clientSocket);
-}
+    // closesocket(clientSocket);
+};
 
-int main()
-{
+int main(){
     WSADATA wsaData;
+
+    std::vector<ClientHandler *> clientHandlersList;
+    std::mutex mtx;
+
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         std::cerr << "Failed to initialize winsock" << std::endl;
@@ -105,12 +174,24 @@ int main()
 
         std::cout << "New client connected" << std::endl;
 
-        // Add the client socket to the vector
-        clientSockets.push_back(clientSocket);
+        // Create a new ClientHandler instance
+        ClientHandler *client = new ClientHandler(clientSocket, clientHandlersList, mtx);
+
+        // Add the client for handling in a separate thread
+        clientHandlersList.push_back(client);
+
+        std::thread clientThread(
+            [&client]()
+            {
+                client->operate();
+            });
+
+        clientThread.detach();
+
 
         // Create a thread to handle the client
-        std::thread clientThread(clientHandler, clientSocket, std::ref(clientSockets));
-        clientThread.detach();
+        // std::thread clientThread(clientHandler, clientSocket, std::ref(clientSockets));
+        // clientThread.detach();
     }
 
     closesocket(serverSocket);
